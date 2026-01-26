@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>note フォロワー推移ダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #38bdf8;
+      --accent-green: #4ade80;
+      --accent-red: #f87171;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    header h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    header p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    
+    .stat-card .label {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    .stat-card .change {
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+    
+    .stat-card .change.positive {
+      color: var(--accent-green);
+    }
+    
+    .stat-card .change.negative {
+      color: var(--accent-red);
+    }
+    
+    .chart-container {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .chart-container h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text-secondary);
+    }
+    
+    .chart-wrapper {
+      position: relative;
+      height: 300px;
+    }
+    
+    .table-container {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .table-container h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text-secondary);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--bg-card);
+    }
+    
+    th {
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+    
+    td {
+      font-size: 0.95rem;
+    }
+    
+    .change-positive {
+      color: var(--accent-green);
+    }
+    
+    .change-negative {
+      color: var(--accent-red);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 note フォロワー推移</h1>
+      <p id="lastUpdated">読み込み中...</p>
+    </header>
+    
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="label">現在のフォロワー</div>
+        <div class="value" id="currentFollowers">-</div>
+        <div class="change" id="todayChange">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">週間増減</div>
+        <div class="value" id="weeklyChange">-</div>
+        <div class="change" id="weeklyAvg">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">月間増減</div>
+        <div class="value" id="monthlyChange">-</div>
+        <div class="change" id="monthlyAvg">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">記録開始からの増加</div>
+        <div class="value" id="totalGrowth">-</div>
+        <div class="change" id="recordDays">-</div>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <h2>フォロワー数推移</h2>
+      <div class="chart-wrapper">
+        <canvas id="followersChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <h2>日次増減</h2>
+      <div class="chart-wrapper">
+        <canvas id="changeChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="table-container">
+      <h2>直近の記録</h2>
+      <table id="recordsTable">
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>フォロワー数</th>
+            <th>前日比</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr><td colspan="3" class="loading">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <footer>
+      <p>Data updated automatically via GitHub Actions</p>
+    </footer>
+  </div>
+  
+  <script>
+    let followersChart = null;
+    let changeChart = null;
+    
+    async function loadData() {
+      try {
+        const response = await fetch('./data/followers.json');
+        if (!response.ok) throw new Error('Data not found');
+        return await response.json();
+      } catch (e) {
+        console.error('Failed to load data:', e);
+        return null;
+      }
+    }
+    
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+    }
+    
+    function formatChange(change) {
+      if (change > 0) return `+${change}`;
+      return String(change);
+    }
+    
+    function updateStats(data) {
+      const records = data.records;
+      if (records.length === 0) return;
+      
+      const latest = records[records.length - 1];
+      const first = records[0];
+      
+      // 現在のフォロワー
+      document.getElementById('currentFollowers').textContent = latest.followers.toLocaleString();
+      const todayChangeEl = document.getElementById('todayChange');
+      todayChangeEl.textContent = `前日比: ${formatChange(latest.change)}`;
+      todayChangeEl.className = `change ${latest.change >= 0 ? 'positive' : 'negative'}`;
+      
+      // 週間
+      const weekAgo = records.slice(-8, -1)[0];
+      if (weekAgo) {
+        const weeklyDiff = latest.followers - weekAgo.followers;
+        document.getElementById('weeklyChange').textContent = formatChange(weeklyDiff);
+        document.getElementById('weeklyChange').parentElement.querySelector('.value').className = 
+          `value ${weeklyDiff >= 0 ? 'change-positive' : 'change-negative'}`;
+        document.getElementById('weeklyAvg').textContent = `平均: ${(weeklyDiff / 7).toFixed(1)}/日`;
+      }
+      
+      // 月間
+      const monthAgo = records.slice(-31, -30)[0];
+      if (monthAgo) {
+        const monthlyDiff = latest.followers - monthAgo.followers;
+        document.getElementById('monthlyChange').textContent = formatChange(monthlyDiff);
+        document.getElementById('monthlyAvg').textContent = `平均: ${(monthlyDiff / 30).toFixed(1)}/日`;
+      }
+      
+      // トータル
+      const totalDiff = latest.followers - first.followers;
+      document.getElementById('totalGrowth').textContent = formatChange(totalDiff);
+      document.getElementById('recordDays').textContent = `${records.length}日間の記録`;
+      
+      // 最終更新
+      if (data.last_updated) {
+        const updated = new Date(data.last_updated);
+        document.getElementById('lastUpdated').textContent = 
+          `最終更新: ${updated.toLocaleString('ja-JP')}`;
+      }
+    }
+    
+    function createCharts(data) {
+      const records = data.records;
+      const labels = records.map(r => r.date);
+      const followers = records.map(r => r.followers);
+      const changes = records.map(r => r.change);
+      
+      // フォロワー推移チャート
+      const ctx1 = document.getElementById('followersChart').getContext('2d');
+      followersChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'フォロワー数',
+            data: followers,
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: records.length > 30 ? 0 : 3,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8' },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            },
+            y: {
+              ticks: { color: '#94a3b8' },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            }
+          }
+        }
+      });
+      
+      // 日次増減チャート
+      const ctx2 = document.getElementById('changeChart').getContext('2d');
+      changeChart = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '前日比',
+            data: changes,
+            backgroundColor: changes.map(c => c >= 0 ? 'rgba(74, 222, 128, 0.7)' : 'rgba(248, 113, 113, 0.7)'),
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8' },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            },
+            y: {
+              ticks: { color: '#94a3b8' },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            }
+          }
+        }
+      });
+    }
+    
+    function updateTable(data) {
+      const tbody = document.getElementById('recordsBody');
+      const records = data.records.slice(-14).reverse();  // 直近14件を新しい順に
+      
+      if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3">データがありません</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = records.map(r => `
+        <tr>
+          <td>${formatDate(r.date)}</td>
+          <td>${r.followers.toLocaleString()}</td>
+          <td class="${r.change >= 0 ? 'change-positive' : 'change-negative'}">
+            ${formatChange(r.change)}
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    async function init() {
+      const data = await loadData();
+      
+      if (!data || data.records.length === 0) {
+        document.getElementById('recordsBody').innerHTML = 
+          '<tr><td colspan="3">データがまだありません。GitHub Actions が実行されるのをお待ちください。</td></tr>';
+        return;
+      }
+      
+      updateStats(data);
+      createCharts(data);
+      updateTable(data);
+    }
+    
+    init();
+  </script>
+</body>
+</html>

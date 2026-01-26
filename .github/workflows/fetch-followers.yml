@@ -1,0 +1,43 @@
+name: Fetch Note Followers
+
+on:
+  schedule:
+    # 毎日 JST 6:30 (UTC 21:30) に実行（無料枠の遅延を考慮）
+    - cron: '30 21 * * *'
+  workflow_dispatch:  # 手動実行も可能
+
+env:
+  NOTE_CREATOR_ID: ${{ vars.NOTE_CREATOR_ID }}
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Fetch follower count
+        id: fetch
+        run: python scripts/fetch_followers.py
+      
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/followers.json
+          
+          # 変更がある場合のみコミット
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📊 Update followers: ${{ steps.fetch.outputs.followers }} (${steps.fetch.outputs.change >= 0 && '+' || ''}${{ steps.fetch.outputs.change }})"
+            git push
+          fi

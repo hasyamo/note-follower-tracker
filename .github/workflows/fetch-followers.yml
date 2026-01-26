@@ -37,11 +37,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/followers.json
-          
+
           # 変更がある場合のみコミット
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "📊 Update followers: ${{ steps.fetch.outputs.followers }} (${steps.fetch.outputs.change >= 0 && '+' || ''}${{ steps.fetch.outputs.change }})"
+            git commit -m "Update followers data"
             git push
           fi

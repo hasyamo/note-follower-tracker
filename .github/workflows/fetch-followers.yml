@@ -21,6 +21,13 @@ jobs:
         with:
           python-version: '3.11'
       
+      - name: Load .env file
+        run: |
+          # .env ファイルを環境変数として読み込み
+          if [ -f .env ]; then
+            grep -v '^#' .env | grep -v '^$' >> $GITHUB_ENV
+          fi
+
       - name: Fetch follower count
         id: fetch
         run: python scripts/fetch_followers.py

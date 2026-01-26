@@ -6,9 +6,6 @@ on:
     - cron: '30 21 * * *'
   workflow_dispatch:  # 手動実行も可能
 
-env:
-  NOTE_CREATOR_ID: ${{ vars.NOTE_CREATOR_ID }}
-
 jobs:
   fetch:
     runs-on: ubuntu-latest

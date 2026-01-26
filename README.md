@@ -2,22 +2,37 @@
 
 noteのフォロワー数を毎日自動取得し、GitHub Pages でダッシュボード表示するツール。
 
-## 🚀 セットアップ
+## 🚀 セットアップ（Fork して使う場合）
 
-### 1. リポジトリの設定
+### 1. リポジトリをフォーク
 
-1. このリポジトリをフォークまたはテンプレートとして使用
-2. **Settings** → **Variables** → **Repository variables** で以下を設定:
-   - `NOTE_CREATOR_ID`: あなたのnoteクリエイターID（URLの `https://note.com/xxx` の `xxx` 部分）
+1. このリポジトリ右上の「Fork」ボタンをクリック
+2. 自分のアカウントにフォーク
 
-### 2. GitHub Pages の有効化
+### 2. データファイルを初期化
+
+フォーク後、以下のファイルを自分用に初期化します。
+
+**`.env` を編集**（GitHub上で直接編集可能）:
+```
+NOTE_CREATOR_ID=your_creator_id
+```
+`your_creator_id` を自分のnoteクリエイターID（URLの `https://note.com/xxx` の `xxx` 部分）に置き換えてください。
+
+**`data/followers.json` を初期化**:
+```json
+[]
+```
+ファイルの内容を空の配列 `[]` に置き換えてください。これで過去のデータがリセットされ、あなたのデータが新しく記録されます。
+
+### 3. GitHub Pages の有効化
 
 1. **Settings** → **Pages**
 2. Source: **Deploy from a branch**
 3. Branch: `main` / `/ (root)`
 4. Save
 
-### 3. Actions の権限設定
+### 4. Actions の権限設定
 
 1. **Settings** → **Actions** → **General**
 2. Workflow permissions: **Read and write permissions** を選択
@@ -39,7 +54,7 @@ python scripts/fetch_followers.py
 
 ## 📊 機能
 
-- 毎日 JST 23:00 に自動でフォロワー数を取得
+- 毎日 JST 6:30 に自動でフォロワー数を取得
 - GitHub Pages でダッシュボード表示
   - 現在のフォロワー数
   - 前日比・週間・月間の増減
@@ -61,6 +76,8 @@ Actions タブから「Fetch Note Followers」を手動実行することも可�
 ├── data/
 │   └── followers.json        # 取得データ（自動更新）
 ├── index.html                # ダッシュボード
+├── .env                      # 環境変数（自分のクリエイターIDを設定）
+├── .env.example              # 環境変数のテンプレート
 └── README.md
 ```
 
